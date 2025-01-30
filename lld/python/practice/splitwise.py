@@ -14,90 +14,124 @@ from abc import ABC, abstractmethod
 from typing import List, Dict
 
 class User:
+    """
+    Represents a user with an ID, name, email, and a dictionary of balances
+    with respect to other users.
+
+    Key: "user_id1:user_id2"
+    Value: net amount that user_id1 owes (if negative) or is owed by (if positive) user_id2.
+    """
     def __init__(self, user_id: str, name: str, email: str):
         self.id = user_id
         self.name = name
         self.email = email
         self.balances: Dict[str, float] = {}
-        
+
     def get_id(self) -> str:
         return self.id
 
     def get_name(self) -> str:
         return self.name
-    
+
     def get_email(self) -> str:
         return self.email
-    
+
     def get_balances(self) -> Dict[str, float]:
         return self.balances
-    
+
+
 class Split(ABC):
+    """
+    Abstract base class for different types of expense splits.
+    Each subclass must implement 'get_amount()' method.
+    """
     def __init__(self, user: User):
         self.user = user
         self.amount = 0.0
-        
+
     @abstractmethod
     def get_amount(self) -> float:
         pass
-    
+
     def set_amount(self, amount: float):
         self.amount = amount
-        
+
     def get_user(self) -> User:
         return self.user
-    
+
+
 class EqualSplit(Split):
+    """
+    Represents an equal split among multiple users.
+    The 'amount' is assigned equally among splits.
+    """
     def __init__(self, user: User):
         super().__init__(user)
-        
-    def get_amount(self) -> float:
-        return self.amount
-    
-class ExactSplit(Split):
-    def __init__(self, user: User, amount: float):
-        super().__init__(user)
-        self.amount = amount
-        
+
     def get_amount(self) -> float:
         return self.amount
 
+
+class ExactSplit(Split):
+    """
+    Represents an exact split where one user is assigned
+    a specific, pre-determined amount.
+    """
+    def __init__(self, user: User, amount: float):
+        super().__init__(user)
+        self.amount = amount
+
+    def get_amount(self) -> float:
+        return self.amount
+
+
 class PercentSplit(Split):
+    """
+    Represents a percentage-based split. For example, if
+    an expense is $100 and percent = 20, this user owes $20.
+    """
     def __init__(self, user: User, percent: float):
         super().__init__(user)
         self.percent = percent
-    
+
     def get_amount(self) -> float:
         return self.amount
-    
+
     def get_percent(self) -> float:
         return self.percent
-    
+
+
 class Expense:
+    """
+    Represents a single expense with an ID, an amount, a description,
+    and a list of splits. The 'paid_by' user is the one who initially
+    covers the cost.
+    """
     def __init__(self, expense_id: str, amount: float, description: str, paid_by: User):
         self.id = expense_id
         self.amount = amount
         self.description = description
         self.paid_by = paid_by
         self.splits: List[Split] = []
-        
+
     def add_split(self, split: Split):
         self.splits.append(split)
-        
+
     def get_id(self) -> str:
         return self.id
-    
+
     def get_amount(self) -> float:
         return self.amount
-    
+
     def get_description(self) -> str:
         return self.description
-    
+
     def get_paid_by(self) -> User:
         return self.paid_by
 
     def get_splits(self) -> List[Split]:
         return self.splits
+
 
 class Group:
     """
@@ -127,7 +161,8 @@ class Group:
 
     def get_expenses(self) -> List[Expense]:
         return self.expenses
-    
+
+
 class Transaction:
     """
     Represents a settlement transaction from one user to another
@@ -138,25 +173,31 @@ class Transaction:
         self.sender = sender
         self.receiver = receiver
         self.amount = amount
-        
+
+
 class SplitwiseService:
+    """
+    A singleton service that tracks users, groups, and expenses.
+    It includes methods to add users, create expenses, and settle balances.
+    """
     _instance = None
-    _TRANSACTION_ID_PREFIX = 'TXN'
+    _TRANSACTION_ID_PREFIX = "TXN"
     _transaction_counter = 0
-    
+
     def __new__(cls):
+        # Singleton pattern: ensures only one instance of this service exists
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance.users: Dict[str, User] = {}
             cls._instance.groups: Dict[str, Group] = {}
         return cls._instance
-    
+
     @classmethod
     def get_instance(cls):
         if cls._instance is None:
-            cls._isntance = cls()
+            cls._instance = cls()
         return cls._instance
-    
+
     def add_user(self, user: User):
         self.users[user.get_id()] = user
 
@@ -212,11 +253,16 @@ class SplitwiseService:
                 # user owes 'amount' to paid_by
                 self._update_balance(paid_by, user, amount)
                 self._update_balance(user, paid_by, -amount)
-    
+
     def _update_balance(self, user1: User, user2: User, amount: float):
+        """
+        Example:
+          user1 owes user2 'amount' if amount is negative.
+          user1 is owed 'amount' from user2 if amount is positive.
+        """
         key = self._get_balance_key(user1, user2)
         user1.get_balances()[key] = user1.get_balances().get(key, 0.0) + amount
-    
+
     def _get_balance_key(self, user1: User, user2: User) -> str:
         return f"{user1.get_id()}:{user2.get_id()}"
 
@@ -256,11 +302,17 @@ class SplitwiseService:
         self._transaction_counter += 1
         return f"{self._TRANSACTION_ID_PREFIX}{self._transaction_counter:06d}"
 
+
 class SplitwiseDemo:
+    """
+    Demonstration class. Creates some users, groups, and expenses,
+    then settles the balances and prints results.
+    """
     @staticmethod
     def run():
         splitwise_service = SplitwiseService.get_instance()
-        
+
+        # Create users
         user1 = User("1", "Alice", "alice@example.com")
         user2 = User("2", "Bob", "bob@example.com")
         user3 = User("3", "Charlie", "charlie@example.com")
@@ -268,7 +320,7 @@ class SplitwiseDemo:
         splitwise_service.add_user(user1)
         splitwise_service.add_user(user2)
         splitwise_service.add_user(user3)
-        
+
         # Create a group
         group = Group("1", "Apartment")
         group.add_member(user1)
@@ -276,34 +328,34 @@ class SplitwiseDemo:
         group.add_member(user3)
 
         splitwise_service.add_group(group)
-        
-         # Add an expense
+
+        # Add an expense
         expense = Expense("1", 300.0, "Rent", user1)
 
         # Splits: 2 equal splits and 1 percentage split
         equal_split1 = EqualSplit(user1)
         equal_split2 = EqualSplit(user2)
         percent_split = PercentSplit(user3, 20.0)  # 20% of 300 -> $60
-        
+
         expense.add_split(equal_split1)
         expense.add_split(equal_split2)
         expense.add_split(percent_split)
 
         # Add the expense to the group (automatically calculates how much each user owes)
         splitwise_service.add_expense(group.get_id(), expense)
-        
-        splitwise_service.add_expense(group.get_id(), expense)
-        
+
+        # Settle balances
         splitwise_service.settle_balance(user1.get_id(), user2.get_id())
         splitwise_service.settle_balance(user1.get_id(), user3.get_id())
-        
+
+        # Print user balances
         print("\n--- Final Balances ---")
         for user in [user1, user2, user3]:
             print(f"User: {user.get_name()}")
             for key, value in user.get_balances().items():
                 if not math.isclose(value, 0.0, abs_tol=1e-9):
-                    print(f" Balnace with {key}: {value}")
-                    
+                    print(f"  Balance with {key}: {value}")
+
 
 if __name__ == "__main__":
     SplitwiseDemo.run()

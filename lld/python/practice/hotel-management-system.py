@@ -37,14 +37,18 @@ from enum import Enum
 from threading import Lock
 from typing import Dict, Optional
 
+
+# -------------------------
 # ENUMS
+# -------------------------
 
 class RoomType(Enum):
-    Single = "SINGLE"
+    SINGLE = "SINGLE"
     DOUBLE = "DOUBLE"
     DELUXE = "DELUXE"
     SUITE = "SUITE"
-    
+
+
 class RoomStatus(Enum):
     AVAILABLE = "AVAILABLE"
     BOOKED = "BOOKED"
@@ -61,16 +65,27 @@ class ReservationStatus(Enum):
 # -------------------------
 
 class Payment(ABC):
+    """
+    Abstract base class representing a payment method.
+    The Strategy pattern is used here so that different
+    payment methods can be used interchangeably.
+    """
     @abstractmethod
     def process_payment(self, amount: float) -> bool:
         pass
 
+
 class CashPayment(Payment):
     def process_payment(self, amount: float) -> bool:
-                # In a real-world scenario, you'd handle actual cash payment logic here.
+        """
+        Processes cash payment.
+        Always returns True for this simplified example.
+        """
+        # In a real-world scenario, you'd handle actual cash payment logic here.
         print(f"Processing cash payment of {amount:.2f}")
         return True
-    
+
+
 class CreditCardPayment(Payment):
     def process_payment(self, amount: float) -> bool:
         """
@@ -80,21 +95,26 @@ class CreditCardPayment(Payment):
         # In a real-world scenario, you'd integrate with a payment gateway here.
         print(f"Processing credit card payment of {amount:.2f}")
         return True
-    
 
+
+# -------------------------
 # GUEST
+# -------------------------
 
 class Guest:
+    """
+    Represents a hotel guest.
+    """
     def __init__(self, guest_id: str, name: str, email: str, phone_number: str):
         self._id = guest_id
         self._name = name
         self._email = email
         self._phone_number = phone_number
-    
+
     @property
     def id(self) -> str:
         return self._id
-    
+
     @property
     def name(self) -> str:
         return self._name
@@ -106,17 +126,28 @@ class Guest:
     @property
     def phone_number(self) -> str:
         return self._phone_number
-    
+
+
+# -------------------------
 # ROOM
+# -------------------------
+
 class Room:
+    """
+    Represents a hotel room.
+    Uses a Lock to handle concurrent access to room status.
+    """
     def __init__(self, room_id: str, room_type: RoomType, price: float):
         self.id = room_id
         self.type = room_type
         self.price = price
         self.status = RoomStatus.AVAILABLE
         self.lock = Lock()
-        
+
     def book(self):
+        """
+        Changes the room status to BOOKED if it's AVAILABLE.
+        """
         with self.lock:
             if self.status == RoomStatus.AVAILABLE:
                 self.status = RoomStatus.BOOKED
@@ -143,7 +174,11 @@ class Room:
             else:
                 raise ValueError("Room is not occupied.")
 
+
+# -------------------------
 # RESERVATION
+# -------------------------
+
 class Reservation:
     """
     Represents a reservation made by a guest for a room.
@@ -174,20 +209,28 @@ class Reservation:
                 self.room.check_out()  # Mark the room as AVAILABLE
             else:
                 raise ValueError("Reservation is not confirmed.")
-            
-    
+
+
+# -------------------------
+# HOTEL MANAGEMENT SYSTEM (Singleton Pattern)
+# -------------------------
+
 class HotelManagementSystem:
+    """
+    Manages rooms, reservations, and guests. Ensures only one instance
+    via the Singleton pattern.
+    """
     _instance = None
-    
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance.guests: Dict[str, Guest] ={}
+            cls._instance.guests: Dict[str, Guest] = {}
             cls._instance.rooms: Dict[str, Room] = {}
             cls._instance.reservations: Dict[str, Reservation] = {}
             cls._instance.lock = Lock()
         return cls._instance
-    
+
     def add_guest(self, guest: Guest):
         self.guests[guest.id] = guest
 
@@ -270,12 +313,20 @@ class HotelManagementSystem:
         Generate a unique reservation identifier.
         """
         return f"RES{uuid.uuid4().hex[:8].upper()}"
-    
+
+
+# -------------------------
+# DEMO
+# -------------------------
+
 class HotelManagementSystemDemo:
+    """
+    Demonstration of how to use the HotelManagementSystem.
+    """
     @staticmethod
     def run():
         hotel_management_system = HotelManagementSystem()
-        
+
         # Create guests
         guest1 = Guest("G001", "John Doe", "john@example.com", "1234567890")
         guest2 = Guest("G002", "Jane Smith", "jane@example.com", "9876543210")
@@ -287,7 +338,7 @@ class HotelManagementSystemDemo:
         room2 = Room("R002", RoomType.DOUBLE, 200.0)
         hotel_management_system.add_room(room1)
         hotel_management_system.add_room(room2)
-        
+
         # Book a room
         check_in_date = date.today()
         check_out_date = check_in_date + timedelta(days=3)
